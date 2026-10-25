@@ -1,0 +1,30 @@
+name: korean_step_by_step
+description: Korean Step-by-Step International (韓語一步通國際版) — 11-Locale Cross-Platform Korean Learning App (Android & Web).
+publish_to: 'none'
+version: 2.0.0+2
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  flutter_tts: ^4.0.2
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/data/curriculum_i18n.json
+    - assets/data/app_translations.json
+    - assets/images/app_logo.png
+    - assets/web/korean_step_by_step_international.html

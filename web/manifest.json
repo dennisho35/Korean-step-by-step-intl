@@ -1,0 +1,23 @@
+{
+  "name": "Korean Step-by-Step International",
+  "short_name": "KoreanStep",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#152C4E",
+  "theme_color": "#152C4E",
+  "description": "11-Locale International Korean Learning Platform (Hangul, Phonology, Numbers, Counters, Conversations)",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "icons/Icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icons/Icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
