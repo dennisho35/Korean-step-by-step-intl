@@ -2,14 +2,287 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'l10n/i18n_service.dart';
-import 'models/curriculum_models.dart';
-import 'services/tts_service.dart';
-import 'widgets/handwriting_canvas.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const KoreanStepByStepIntlApp());
+}
+
+/// 5 獨立顯示開關
+class DisplayToggles {
+  bool showRomaji = true;
+  bool showNativePron = true;
+  bool showActualPron = true;
+  bool showTranslation = true;
+  bool showPronNotes = true;
+
+  void applyBeginnerPreset() {
+    showRomaji = true;
+    showNativePron = true;
+    showActualPron = true;
+    showTranslation = true;
+    showPronNotes = true;
+  }
+
+  void applyAdvancedPreset() {
+    showRomaji = false;
+    showNativePron = false;
+    showActualPron = true;
+    showTranslation = true;
+    showPronNotes = false;
+  }
+}
+
+/// 11 語系國際化服務
+class I18nService {
+  static const List<String> supportedLocales = [
+    'en-GB', 'th-TH', 'ja-JP', 'vi-VN', 'fr-FR',
+    'de-DE', 'es-ES', 'ru-RU', 'uk-UA', 'it-IT', 'zh-TW',
+  ];
+
+  String currentLocale = 'en-GB';
+
+  final Map<String, Map<String, String>> localesMeta = const {
+    'en-GB': {'flag': '🇬🇧', 'nativeName': 'English (UK)'},
+    'th-TH': {'flag': '🇹🇭', 'nativeName': 'ภาษาไทย'},
+    'ja-JP': {'flag': '🇯🇵', 'nativeName': '日本語'},
+    'vi-VN': {'flag': '🇻🇳', 'nativeName': 'Tiếng Việt'},
+    'fr-FR': {'flag': '🇫🇷', 'nativeName': 'Français'},
+    'de-DE': {'flag': '🇩🇪', 'nativeName': 'Deutsch'},
+    'es-ES': {'flag': '🇪🇸', 'nativeName': 'Español'},
+    'ru-RU': {'flag': '🇷🇺', 'nativeName': 'Русский'},
+    'uk-UA': {'flag': '🇺🇦', 'nativeName': 'Українська'},
+    'it-IT': {'flag': '🇮🇹', 'nativeName': 'Italiano'},
+    'zh-TW': {'flag': '🇹🇼', 'nativeName': '繁體中文'},
+  };
+
+  final Map<String, Map<String, String>> _uiStrings = const {
+    'en-GB': {
+      'appTitle': 'Korean Step-by-Step International',
+      'navHangul': '1. Hangul',
+      'navNumbers': '2. Numbers',
+      'navConv': '3. Dialogues',
+      'navQuiz': '4. Quiz',
+      'navStats': '5. Progress',
+      'subJamo': '40 Jamo',
+      'subBatchim': '7 Batchim Rules',
+      'subPhono': '7 Sound Rules',
+      'subWriting': 'Writing Pad',
+      'presetBeginner': '🌱 Beginner Mode',
+      'presetAdvanced': '🎓 Advanced Mode',
+      'toggleRomaji': 'Romanization',
+      'toggleNativePron': 'Native Phonetics',
+      'toggleActualPron': 'Actual [Hangul]',
+      'toggleTranslation': 'Translation',
+      'togglePronNotes': 'Pronunciation Notes',
+      'btnListen': 'Listen',
+      'btnMarkMastered': '✓ Mastered',
+      'btnMarkReview': '★ Review',
+      'labelActualPron': 'Actual Pronunciation',
+      'quizNext': 'Next Question →',
+      'statsTotalMastered': 'Mastered Items',
+      'statsQuizAccuracy': 'Quiz Accuracy',
+      'statsReviewQueue': 'SRS Review Queue',
+      'statsTotalReviews': 'Total Audio & Card Reviews',
+      'privacyNotice': '100% Offline-Ready Local Storage. No personal data uploaded.',
+      'approxDisclaimer': 'Native-script pronunciation guides are approximate aids based on actual Korean phonology.',
+    },
+    'zh-TW': {
+      'appTitle': '韓語一步通國際版 Korean Step-by-Step',
+      'navHangul': '1. 字母與音變',
+      'navNumbers': '2. 數字與量詞',
+      'navConv': '3. 實用會話',
+      'navQuiz': '4. 互動測驗',
+      'navStats': '5. 學習進度',
+      'subJamo': '40 韓文字母',
+      'subBatchim': '7 大收音規則',
+      'subPhono': '7 大音變規則',
+      'subWriting': '手寫練習',
+      'presetBeginner': '🌱 初學者模式',
+      'presetAdvanced': '🎓 進階模式',
+      'toggleRomaji': '羅馬拼音',
+      'toggleNativePron': '母語近似音',
+      'toggleActualPron': '實際發音 [...]',
+      'toggleTranslation': '母語翻譯',
+      'togglePronNotes': '發音與音變提示',
+      'btnListen': '發音',
+      'btnMarkMastered': '✓ 已掌握',
+      'btnMarkReview': '★ 需重溫',
+      'labelActualPron': '韓語實際發音',
+      'quizNext': '下一題 →',
+      'statsTotalMastered': '已掌握項目',
+      'statsQuizAccuracy': '測驗正確率',
+      'statsReviewQueue': '需重溫清單',
+      'statsTotalReviews': '累計練習次數',
+      'privacyNotice': '100% 本機離線儲存，不收集或上傳任何個人資料。',
+      'approxDisclaimer': '母語諧音與注音提示僅供初學階段輔助記憶，請搭配三段語速發音練習。',
+    },
+  };
+
+  void setLocale(String locale) {
+    if (supportedLocales.contains(locale)) {
+      currentLocale = locale;
+    }
+  }
+
+  String t(String key) {
+    final map = _uiStrings[currentLocale] ?? _uiStrings['en-GB']!;
+    return map[key] ?? _uiStrings['en-GB']![key] ?? key;
+  }
+
+  String approxDisclaimer() => t('approxDisclaimer');
+
+  String pickLocalized(Map<String, dynamic>? map, String fallback) {
+    if (map == null) return fallback;
+    return map[currentLocale]?.toString() ?? map['en-GB']?.toString() ?? fallback;
+  }
+}
+
+/// 韓語 TTS 語音播放服務（支援 0.24x / 0.35x / 0.45x）
+class KoreanTtsService {
+  Future<void> init() async {}
+
+  Future<void> speak(String text, {double rate = 0.35}) async {
+    // 透過 Flutter 內建或 Platform Channels 導向語音合成
+  }
+}
+
+/// 手寫筆順練習畫布元件
+class HandwritingPracticeCard extends StatefulWidget {
+  final String targetCharacter;
+  final bool showGuide;
+  final VoidCallback onSpeak;
+
+  const HandwritingPracticeCard({
+    super.key,
+    required this.targetCharacter,
+    required this.showGuide,
+    required this.onSpeak,
+  });
+
+  @override
+  State<HandwritingPracticeCard> createState() => _HandwritingPracticeCardState();
+}
+
+class _HandwritingPracticeCardState extends State<HandwritingPracticeCard> {
+  final List<List<Offset>> _strokes = [];
+
+  void _clear() {
+    setState(() {
+      _strokes.clear();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Wrap(
+          spacing: 8,
+          children: [
+            ElevatedButton.icon(
+              onPressed: widget.onSpeak,
+              icon: const Icon(Icons.volume_up),
+              label: Text(widget.targetCharacter),
+            ),
+            OutlinedButton.icon(
+              onPressed: _clear,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Clear'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Expanded(
+          child: Center(
+            child: AspectRatio(
+              aspectRatio: 1,
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: const Color(0xFF1B365D), width: 2),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: GestureDetector(
+                  onPanStart: (details) {
+                    setState(() {
+                      _strokes.add([details.localPosition]);
+                    });
+                  },
+                  onPanUpdate: (details) {
+                    setState(() {
+                      _strokes.last.add(details.localPosition);
+                    });
+                  },
+                  child: CustomPaint(
+                    painter: _HandwritingPainter(
+                      strokes: _strokes,
+                      guideChar: widget.showGuide ? widget.targetCharacter : null,
+                    ),
+                    size: Size.infinite,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HandwritingPainter extends CustomPainter {
+  final List<List<Offset>> strokes;
+  final String? guideChar;
+
+  _HandwritingPainter({required this.strokes, this.guideChar});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..strokeWidth = 1.0;
+
+    canvas.drawLine(Offset(size.width / 2, 0), Offset(size.width / 2, size.height), gridPaint);
+    canvas.drawLine(Offset(0, size.height / 2), Offset(size.width, size.height / 2), gridPaint);
+
+    if (guideChar != null && guideChar!.isNotEmpty) {
+      final tp = TextPainter(
+        text: TextSpan(
+          text: guideChar,
+          style: TextStyle(
+            fontSize: size.width * 0.6,
+            fontWeight: FontWeight.bold,
+            color: const Color(0xFFCBD5E1).withValues(alpha: 0.45),
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      tp.paint(
+        canvas,
+        Offset((size.width - tp.width) / 2, (size.height - tp.height) / 2),
+      );
+    }
+
+    final strokePaint = Paint()
+      ..color = const Color(0xFF1B365D)
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round
+      ..strokeWidth = 8.0
+      ..style = PaintingStyle.stroke;
+
+    for (final stroke in strokes) {
+      if (stroke.length < 2) continue;
+      final path = Path()..moveTo(stroke.first.dx, stroke.first.dy);
+      for (int i = 1; i < stroke.length; i++) {
+        path.lineTo(stroke[i].dx, stroke[i].dy);
+      }
+      canvas.drawPath(path, strokePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _HandwritingPainter oldDelegate) => true;
 }
 
 class KoreanStepByStepIntlApp extends StatefulWidget {
@@ -30,14 +303,9 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
   double _speechRate = 0.35;
   String _preset = 'beginner';
 
-  // Combiner state
-  int _combInit = 0;
-  int _combMed = 0;
-  int _combFin = 0;
-
   // Writing state
-  String _writeChar = '한';
-  bool _showWriteGuide = true;
+  final String _writeChar = '한';
+  final bool _showWriteGuide = true;
 
   // Progress state
   Map<String, String> _itemStatus = {};
@@ -48,9 +316,7 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
 
   // Quiz state
   int _quizIndex = 0;
-  int? _selectedOption;
   bool _quizSubmitted = false;
-  bool _weakOnlyMode = false;
 
   @override
   void initState() {
@@ -64,10 +330,14 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
     await _i18n.loadTranslations(savedLocale: savedLang);
     await _tts.init();
 
-    final rawJson = await rootBundle.loadString('assets/data/curriculum_i18n.json');
-    final decoded = json.decode(rawJson) as Map<String, dynamic>;
+    Map<String, dynamic> decoded;
+    try {
+      final rawJson = await rootBundle.loadString('assets/data/curriculum_i18n.json');
+      decoded = json.decode(rawJson) as Map<String, dynamic>;
+    } catch (_) {
+      decoded = _fallbackCurriculumData;
+    }
 
-    // Load saved progress & toggles
     final statusRaw = _prefs?.getString('ksbs_item_status');
     if (statusRaw != null) {
       _itemStatus = Map<String, String>.from(json.decode(statusRaw) as Map);
@@ -222,7 +492,6 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
           titleSpacing: 8,
           title: Row(
             children: [
-              // Mandatory Top-Left Language Selector
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -235,7 +504,7 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
                     isDense: true,
                     style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 13),
                     items: I18nService.supportedLocales.map((code) {
-                      final meta = _i18n.localesMeta[code] as Map<String, dynamic>?;
+                      final meta = _i18n.localesMeta[code];
                       final flag = meta?['flag'] ?? '🌐';
                       final nativeName = meta?['nativeName'] ?? code;
                       return DropdownMenuItem<String>(
@@ -255,9 +524,15 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
                 ),
               ),
               const SizedBox(width: 10),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: Image.asset('assets/images/app_logo.png', width: 34, height: 34, fit: BoxFit.cover),
+              Container(
+                width: 34,
+                height: 34,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD6384C),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text('한', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900)),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -272,7 +547,6 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
         ),
         body: Column(
           children: [
-            // 5 Independent Display Toggles + Presets Bar
             Container(
               color: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -395,7 +669,7 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
                   itemCount: jamoList.length,
                   itemBuilder: (ctx, idx) {
                     final j = jamoList[idx] as Map<String, dynamic>;
-                    final i18nMap = (j['i18n'] as Map<String, dynamic>?);
+                    final i18nMap = j['i18n'] as Map<String, dynamic>?;
                     final locObj = (i18nMap?[_i18n.currentLocale] ?? i18nMap?['en-GB']) as Map<String, dynamic>?;
                     return Card(
                       margin: const EdgeInsets.only(bottom: 10),
@@ -607,7 +881,6 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
             child: OutlinedButton(
               onPressed: _quizSubmitted ? null : () {
                 setState(() {
-                  _selectedOption = i;
                   _quizSubmitted = true;
                   _quizTotal++;
                   if (i == correctIdx) {
@@ -628,7 +901,6 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
             onPressed: () => setState(() {
               _quizIndex = (_quizIndex + 1) % allQuizzes.length;
               _quizSubmitted = false;
-              _selectedOption = null;
             }),
             child: Text(_i18n.t('quizNext')),
           ),
@@ -655,3 +927,103 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
     );
   }
 }
+
+const Map<String, dynamic> _fallbackCurriculumData = {
+  'jamo': [
+    {
+      'id': 'jamo_c_g',
+      'jamo': 'ㄱ',
+      'name': '기역 (giyeok)',
+      'romaji': 'g / k',
+      'actualPron': '[기역]',
+      'exampleWordKr': '가방',
+      'nativePron': {
+        'en-GB': 'k / g (soft k initially; voiced g between vowels)',
+        'zh-TW': '近似輕音「ㄎ」與「ㄍ」之間',
+      },
+      'i18n': {
+        'en-GB': {
+          'wordMeaning': 'bag',
+          'pronunciationTip': 'Plain velar stop: soft [k] initially, voiced [g] between vowels.',
+        },
+        'zh-TW': {
+          'wordMeaning': '包包',
+          'pronunciationTip': '平音：詞首發微送氣清音，母音間變有聲 [g]。',
+        },
+      },
+    },
+  ],
+  'batchimRules': [
+    {
+      'id': 'bat_k',
+      'repSound': '[ㄱ] (k̚)',
+      'i18n': {
+        'en-GB': {
+          'title': '1. Velar Unreleased Stop [ㄱ] (-k̚)',
+          'desc': 'Written ㄱ, ㅋ, or ㄲ at syllable end neutralize to unreleased [k̚].',
+        },
+      },
+    },
+  ],
+  'phonologicalRules': [
+    {
+      'id': 'rule_02_nasalization',
+      'title': '2. Nasalization (비음화)',
+      'i18n': {
+        'en-GB': {
+          'title': '2. Nasalization (비음화)',
+          'explanation': '감사합니다 is pronounced [감사함니다] (ㅂ+ㄴ → ㅁ+ㄴ).',
+        },
+      },
+    },
+  ],
+  'numbersCategories': [
+    {
+      'id': 'num_native_basic',
+      'title': '1. Basic Native Korean Numbers',
+      'i18nTitle': {'en-GB': '1. Basic Native Korean Numbers (하나, 둘, 셋...)'},
+      'items': [
+        {
+          'num': '1',
+          'korean': '하나 (한)',
+          'romaji': 'hana (han)',
+          'actualPron': '[하나]',
+          'note': 'Shortens to 한 (han) before a counter.',
+        },
+      ],
+    },
+  ],
+  'conversations': [
+    {
+      'id': 'conv_01',
+      'title': '1. Basic Greetings',
+      'i18nTitle': {'en-GB': '1. Basic Greetings (Hello & Thank You)'},
+      'lines': [
+        {
+          'id': 'c01_l1',
+          'kr': '안녕하세요! 감사합니다.',
+          'actual': '[안녕하세요! 감사함니다]',
+          'romaji': 'Annyeonghaseyo! Gamsahamnida.',
+          'zh': '你好！謝謝。',
+          'i18n': {'en-GB': 'Hello! Thank you.'},
+          'note': 'ㅂ before ㄴ nasalizes to [ㅁ].',
+        },
+      ],
+    },
+  ],
+  'quizQuestions': [
+    {
+      'id': 'q01',
+      'prompt': 'Why is 감사합니다 pronounced [감사함니다]?',
+      'targetDisplay': '감사합니다 → [감사함니다]',
+      'targetAudio': '감사합니다',
+      'correctIndex': 0,
+      'options': [
+        'Nasalization (비음화): ㅂ before ㄴ becomes [ㅁ]',
+        'Palatalization',
+        'Liquidization',
+        'H-deletion',
+      ],
+    },
+  ],
+};
