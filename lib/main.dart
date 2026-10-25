@@ -119,6 +119,12 @@ class I18nService {
     },
   };
 
+  Future<void> initTranslations({String? savedLocale}) async {
+    if (savedLocale != null && supportedLocales.contains(savedLocale)) {
+      currentLocale = savedLocale;
+    }
+  }
+
   void setLocale(String locale) {
     if (supportedLocales.contains(locale)) {
       currentLocale = locale;
@@ -253,7 +259,7 @@ class _HandwritingPainter extends CustomPainter {
           style: TextStyle(
             fontSize: size.width * 0.6,
             fontWeight: FontWeight.bold,
-            color: const Color(0xFFCBD5E1).withValues(alpha: 0.45),
+            color: const Color(0xFFCBD5E1).withOpacity(0.45),
           ),
         ),
         textDirection: TextDirection.ltr,
@@ -327,7 +333,7 @@ class _KoreanStepByStepIntlAppState extends State<KoreanStepByStepIntlApp> {
   Future<void> _initPlatform() async {
     _prefs = await SharedPreferences.getInstance();
     final savedLang = _prefs?.getString('ksbs_lang');
-    await _i18n.loadTranslations(savedLocale: savedLang);
+    await _i18n.initTranslations(savedLocale: savedLang);
     await _tts.init();
 
     Map<String, dynamic> decoded;
